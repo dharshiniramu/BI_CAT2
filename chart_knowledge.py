@@ -157,6 +157,40 @@ def _top_products_insight(filtered_df: pd.DataFrame) -> list[str]:
     return facts[:3]
 
 
+def _country_sales_insight(filtered_df: pd.DataFrame) -> list[str]:
+    if filtered_df.empty or not {"Country", "TotalAmount"}.issubset(filtered_df.columns):
+        return _empty_insight("country sales")
+
+    countries = (
+        filtered_df.groupby("Country", as_index=False)["TotalAmount"]
+        .sum()
+        .sort_values("TotalAmount", ascending=False)
+        .head(10)
+    )
+    if countries.empty:
+        return _empty_insight("country sales")
+    first = countries.iloc[0]
+    return [
+        f"{first['Country']} leads the countries shown at {_money(first['TotalAmount'])}.",
+        f"The top {len(countries)} countries together account for {_money(countries['TotalAmount'].sum())}.",
+    ]
+
+
+def _payment_method_insight(filtered_df: pd.DataFrame) -> list[str]:
+    if filtered_df.empty or not {"PaymentMethod", "OrderID"}.issubset(filtered_df.columns):
+        return _empty_insight("payment-method orders")
+
+    methods = filtered_df["PaymentMethod"].value_counts()
+    if methods.empty:
+        return _empty_insight("payment-method orders")
+    first = methods.index[0]
+    share = methods.iloc[0] / methods.sum() * 100
+    return [
+        f"{first} is the most common payment method with {methods.iloc[0]:,} orders ({share:.1f}%).",
+        f"The chart covers {methods.sum():,} orders across {len(methods):,} payment methods.",
+    ]
+
+
 def _forecast_kpi_insight(filtered_df: pd.DataFrame) -> list[str]:
     if filtered_df.empty:
         return _empty_insight("forecast records")
@@ -298,6 +332,67 @@ def _latest_forecast_insight(filtered_df: pd.DataFrame) -> list[str]:
     return facts[:3]
 
 
+def _category_forecast_insight(filtered_df: pd.DataFrame) -> list[str]:
+    if filtered_df.empty or not {
+        "Category",
+        "PredictedDemand",
+        "ProductID",
+    }.issubset(filtered_df.columns):
+        return _empty_insight("category forecasts")
+
+    categories = (
+        filtered_df.groupby("Category", as_index=False)
+        .agg(PredictedDemand=("PredictedDemand", "sum"), Products=("ProductID", "nunique"))
+        .sort_values("PredictedDemand", ascending=False)
+    )
+    if categories.empty:
+        return _empty_insight("category forecasts")
+    first = categories.iloc[0]
+    return [
+        f"{first['Category']} has the highest expected demand at {_number(first['PredictedDemand'])} units.",
+        f"The chart compares {len(categories):,} categories across {int(categories['Products'].sum()):,} products.",
+    ]
+
+
+def _forecast_driver_insight(filtered_df: pd.DataFrame) -> list[str]:
+    if filtered_df.empty or not {
+        "RollingAverage",
+        "PredictedDemand",
+        "SalesVelocity",
+    }.issubset(filtered_df.columns):
+        return _empty_insight("forecast driver relationships")
+
+    correlation = filtered_df[["RollingAverage", "PredictedDemand"]].corr().iloc[0, 1]
+    if pd.isna(correlation):
+        return ["There are not enough numeric values to compare recent and predicted demand."]
+    direction = "positive" if correlation >= 0 else "negative"
+    return [
+        f"The relationship between recent rolling-average demand and predicted demand is {direction} (correlation {correlation:.2f}).",
+        "Larger bubbles indicate higher sales velocity; colors identify low, medium, and high demand.",
+    ]
+
+
+def _prediction_error_insight(filtered_df: pd.DataFrame) -> list[str]:
+    if filtered_df.empty or not {
+        "ActualDemand",
+        "PredictedDemand",
+        "MonthLabel",
+    }.issubset(filtered_df.columns):
+        return _empty_insight("prediction errors")
+
+    actual = pd.to_numeric(filtered_df["ActualDemand"], errors="coerce")
+    predicted = pd.to_numeric(filtered_df["PredictedDemand"], errors="coerce")
+    errors = (predicted - actual).abs()
+    valid = errors.dropna()
+    if valid.empty:
+        return _empty_insight("prediction errors")
+    highest = valid.idxmax()
+    return [
+        f"Average absolute prediction error is {valid.mean():,.1f} units across {len(valid):,} product-month records.",
+        f"The largest absolute error is {valid.loc[highest]:,.1f} units in {filtered_df.loc[highest, 'MonthLabel']}.",
+    ]
+
+
 CHART_REGISTRY: list[ChartKnowledgeEntry] = [
     {
         "id": "sales-kpis",
@@ -345,6 +440,24 @@ CHART_REGISTRY: list[ChartKnowledgeEntry] = [
         "get_insight": _top_products_insight,
     },
     {
+        "id": "country-sales",
+        "tab": "sales",
+        "title": "Top countries by sales",
+        "what_it_shows": "This chart ranks the countries contributing the most sales.",
+        "how_to_read": "Longer horizontal bars mean more sales; hovering also shows the number of orders.",
+        "data_key": "sales",
+        "get_insight": _country_sales_insight,
+    },
+    {
+        "id": "payment-methods",
+        "tab": "sales",
+        "title": "Orders by payment method",
+        "what_it_shows": "This chart compares order volume across payment methods.",
+        "how_to_read": "Taller bars mean more orders; hovering shows the sales total for each method.",
+        "data_key": "sales",
+        "get_insight": _payment_method_insight,
+    },
+    {
         "id": "forecast-kpis",
         "tab": "forecast",
         "title": "Forecast key figures",
@@ -388,6 +501,33 @@ CHART_REGISTRY: list[ChartKnowledgeEntry] = [
         "how_to_read": "Rows are ordered from highest to lowest predicted demand; larger demand values indicate more units are expected.",
         "data_key": "forecast",
         "get_insight": _latest_forecast_insight,
+    },
+    {
+        "id": "category-forecast",
+        "tab": "forecast",
+        "title": "Predicted demand by category",
+        "what_it_shows": "This chart totals expected demand for each product category.",
+        "how_to_read": "Longer bars mean more units are expected in that category; hovering shows the product count.",
+        "data_key": "forecast",
+        "get_insight": _category_forecast_insight,
+    },
+    {
+        "id": "forecast-drivers",
+        "tab": "forecast",
+        "title": "Forecast demand versus recent sales",
+        "what_it_shows": "This chart compares predicted demand with each product's recent rolling-average demand.",
+        "how_to_read": "Points farther right have higher recent demand, higher points have higher predictions, and larger bubbles have higher sales velocity.",
+        "data_key": "forecast",
+        "get_insight": _forecast_driver_insight,
+    },
+    {
+        "id": "prediction-error",
+        "tab": "forecast",
+        "title": "Average prediction error by month",
+        "what_it_shows": "This chart measures the average absolute gap between recorded and predicted demand each month.",
+        "how_to_read": "Shorter bars mean predictions were closer to actual demand; taller bars mean larger average errors.",
+        "data_key": "predictions",
+        "get_insight": _prediction_error_insight,
     },
 ]
 

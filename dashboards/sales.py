@@ -87,3 +87,40 @@ def render_sales_dashboard(sales: pd.DataFrame) -> None:
         ),
         use_container_width=True,
     )
+
+    left, right = st.columns(2)
+    with left:
+        country_sales = (
+            sales.groupby("Country", as_index=False)
+            .agg(Sales=("TotalAmount", "sum"), Orders=("OrderID", "nunique"))
+            .sort_values("Sales", ascending=False)
+            .head(10)
+        )
+        st.plotly_chart(
+            px.bar(
+                country_sales.sort_values("Sales"),
+                x="Sales",
+                y="Country",
+                orientation="h",
+                hover_data=["Orders"],
+                title="Top countries by sales",
+            ),
+            use_container_width=True,
+        )
+    with right:
+        payment_mix = (
+            sales.groupby("PaymentMethod", as_index=False)
+            .agg(Orders=("OrderID", "nunique"), Sales=("TotalAmount", "sum"))
+            .sort_values("Orders", ascending=False)
+        )
+        st.plotly_chart(
+            px.bar(
+                payment_mix,
+                x="PaymentMethod",
+                y="Orders",
+                color="PaymentMethod",
+                hover_data=["Sales"],
+                title="Orders by payment method",
+            ),
+            use_container_width=True,
+        )

@@ -83,6 +83,72 @@ def render_ml_dashboard(
         use_container_width=True,
     )
 
+    left, right = st.columns(2)
+    with left:
+        category_forecast = (
+            forecast.groupby("Category", as_index=False)
+            .agg(
+                PredictedDemand=("PredictedDemand", "sum"),
+                Products=("ProductID", "nunique"),
+            )
+            .sort_values("PredictedDemand", ascending=False)
+        )
+        st.plotly_chart(
+            px.bar(
+                category_forecast.sort_values("PredictedDemand"),
+                x="PredictedDemand",
+                y="Category",
+                orientation="h",
+                hover_data=["Products"],
+                title="Predicted demand by category",
+            ),
+            use_container_width=True,
+        )
+    with right:
+        driver_data = forecast.copy()
+        st.plotly_chart(
+            px.scatter(
+                driver_data,
+                x="RollingAverage",
+                y="PredictedDemand",
+                size="SalesVelocity",
+                color="DemandClassification",
+                hover_data=["ProductName", "Category"],
+                color_discrete_map={
+                    "Low": "#4C78A8",
+                    "Medium": "#F2CF5B",
+                    "High": "#E45756",
+                },
+                title="Forecast demand versus recent sales",
+                labels={
+                    "RollingAverage": "Recent rolling-average demand",
+                    "PredictedDemand": "Predicted demand",
+                },
+            ),
+            use_container_width=True,
+        )
+
+    prediction_error = predictions.copy()
+    prediction_error["AbsoluteError"] = (
+        pd.to_numeric(prediction_error["PredictedDemand"], errors="coerce")
+        - pd.to_numeric(prediction_error["ActualDemand"], errors="coerce")
+    ).abs()
+    error_by_month = (
+        prediction_error.groupby("MonthLabel", as_index=False)
+        .agg(MeanAbsoluteError=("AbsoluteError", "mean"))
+        .dropna(subset=["MeanAbsoluteError"])
+    )
+    st.plotly_chart(
+        px.bar(
+            error_by_month,
+            x="MonthLabel",
+            y="MeanAbsoluteError",
+            title="Average prediction error by month",
+            labels={"MeanAbsoluteError": "Average absolute error (units)"},
+        ),
+        use_container_width=True,
+    )
+
     st.subheader("Latest product forecast")
     display_forecast = forecast.sort_values(
         "PredictedDemand", ascending=False

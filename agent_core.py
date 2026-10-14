@@ -24,12 +24,12 @@ SUGGESTIONS = {
     "sales": [
         "Explain this page in simple words",
         "Which category has the highest sales?",
-        "What does the order-status chart show?",
+        "Which country has the highest sales?",
     ],
     "forecast": [
         "Explain this page in simple words",
         "What does predicted versus actual demand mean?",
-        "How many products are marked as high demand?",
+        "Which category has the highest predicted demand?",
     ],
     "demand": [
         "Which products have the highest predicted demand?",
@@ -44,14 +44,17 @@ OFF_TOPIC_REPLY = (
 
 _SALES_TERMS = re.compile(
     r"\b(sales?|revenue|orders?|customers?|categories|category|"
-    r"order status|gross sales|units sold|top products by sales)\b",
+    r"order status|gross sales|units sold|top products by sales|"
+    r"countries?|geography|payment method)\b",
     re.IGNORECASE,
 )
 _FORECAST_CHART_TERMS = re.compile(
     r"\b(chart|graph|plot|dashboard|page|bar|pie|scatter|table|"
     r"classification|classifications|actual(?:\s+versus|\s+vs\.?|\s+and)\s+predicted|"
     r"predicted(?:\s+versus|\s+vs\.?|\s+and)\s+actual|forecast tab|ml tab|"
-    r"monthly demand|demand level distribution)\b",
+    r"monthly demand|demand level distribution|prediction error|"
+    r"forecast error|demand by category|forecast drivers|rolling average|"
+    r"recent sales)\b",
     re.IGNORECASE,
 )
 _DEMAND_TERMS = re.compile(
@@ -64,6 +67,11 @@ _DEMAND_TERMS = re.compile(
 )
 _PREDICTED_DEMAND_REASON = re.compile(
     r"\bwhy\b.{0,60}\b(predicted|forecast)\b.{0,40}\bdemand\b",
+    re.IGNORECASE,
+)
+_CATEGORY_FORECAST_QUESTION = re.compile(
+    r"\b(?:category|categories)\b.{0,50}\b(?:predicted|forecast)\s+demand\b|"
+    r"\b(?:predicted|forecast)\s+demand\b.{0,50}\b(?:category|categories)\b",
     re.IGNORECASE,
 )
 _FORECAST_LEVEL_COUNT = re.compile(
@@ -98,6 +106,8 @@ def _cheap_scope(question: str, mode: str) -> str | None:
         return mode
 
     if _PREDICTED_DEMAND_REASON.search(normalized):
+        return "forecast"
+    if _CATEGORY_FORECAST_QUESTION.search(normalized):
         return "forecast"
     if _FORECAST_LEVEL_COUNT.search(normalized):
         return "forecast"
@@ -319,7 +329,7 @@ def _sales_page_summary(sales: pd.DataFrame) -> str:
     )
 
     summary = [
-        "This page shows selected orders, monthly sales, leading categories, order statuses, and top products.",
+        "This page shows selected orders, monthly sales, leading categories, order statuses, top products, countries, and payment methods.",
         "",
         "**What it means for you**",
         (
@@ -343,6 +353,15 @@ def _sales_page_summary(sales: pd.DataFrame) -> str:
             f"- {categories.iloc[0]['Category']} led category sales; "
             f"{statuses.index[0]} was the most common order status; "
             f"{products.iloc[0]['ProductName']} led product sales."
+        )
+    if (
+        not categories.empty
+        and {"Country", "PaymentMethod"}.issubset(sales.columns)
+    ):
+        summary.append(
+            f"- {categories.iloc[0]['Category']} is the leading category; "
+            f"{sales.groupby('Country')['TotalAmount'].sum().idxmax()} is the leading country, "
+            f"and {sales['PaymentMethod'].value_counts().index[0]} is the most common payment method."
         )
     return "\n".join(summary)
 
@@ -388,7 +407,7 @@ def _forecast_page_summary(
         else "Monthly demand figures are not available."
     )
     summary = [
-        "This page shows expected demand, demand levels, monthly comparisons, and product forecasts.",
+        "This page shows expected demand, demand levels, monthly comparisons, product forecasts, category demand, forecast drivers, and prediction error.",
         "",
         "**What it means for you**",
         (
@@ -408,6 +427,21 @@ def _forecast_page_summary(
             f"are expected than for the other levels. {monthly_reading}"
         ),
     ]
+    category_totals = (
+        forecast.groupby("Category")["PredictedDemand"].sum()
+        if {"Category", "PredictedDemand"}.issubset(forecast.columns)
+        else pd.Series(dtype=float)
+    )
+    error = (
+        pd.to_numeric(predictions["PredictedDemand"], errors="coerce")
+        - pd.to_numeric(predictions["ActualDemand"], errors="coerce")
+    ).abs().dropna()
+    if not category_totals.empty and not error.empty:
+        summary.append(
+            f"- {category_totals.idxmax()} has the highest category forecast "
+            f"at {category_totals.max():,.0f} units; average prediction error is "
+            f"{error.mean():,.1f} units."
+        )
     if not comparisons.empty and not top_forecast.empty:
         average_gap = (
             comparisons["PredictedDemand"] - comparisons["ActualDemand"]
@@ -473,6 +507,10 @@ def _requested_chart(question: str, mode: str) -> str:
     if mode == "sales":
         if "month" in lowered:
             return "monthly-sales"
+        if "countr" in lowered or "geograph" in lowered:
+            return "country-sales"
+        if "payment" in lowered:
+            return "payment-methods"
         if "categor" in lowered:
             return "top-categories"
         if "status" in lowered:
@@ -483,6 +521,12 @@ def _requested_chart(question: str, mode: str) -> str:
 
     if any(term in lowered for term in ("classification", "high demand", "low demand", "medium demand")):
         return "demand-classification"
+    if "error" in lowered:
+        return "prediction-error"
+    if "categor" in lowered:
+        return "category-forecast"
+    if any(term in lowered for term in ("driver", "rolling average", "recent sales")):
+        return "forecast-drivers"
     if ("actual" in lowered or "predicted" in lowered) and "month" in lowered:
         return "monthly-actual-predicted"
     if ("scatter" in lowered or "product-month" in lowered or "compare product" in lowered):
