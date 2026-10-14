@@ -173,17 +173,23 @@ def test_long_conversation_scrolls_after_messages_and_once_after_reopen(monkeypa
     app.run()
 
     assert scrolls == []
-    for question in ["Explain this page", "Why?", "Why?", "Why?", "Why?", "Why?"]:
+    questions = [
+        f"Question {index}: " + "Please explain the chart and its implications. " * 20
+        for index in range(6)
+    ]
+    for question in questions:
         app.text_input(key="agent_question_text").set_value(question)
         app.button(key="FormSubmitter:agent_chat_input-Send").click().run()
 
     assert scrolls == [True] * 6
     assert len(app.session_state["agent_history"]["sales"]) == 12
+    assert app.session_state["agent_history"]["sales"][-2]["content"] == questions[-1]
     assert app.session_state["agent_history"]["sales"][-1]["content"] == long_answer
 
     app.segmented_control(key="agent_mode_selector").set_value("forecast").run()
     assert len(scrolls) == 6
     app.segmented_control(key="agent_mode_selector").set_value("sales").run()
+    assert len(scrolls) == 7
     app.button(key="agent_minimize_button").click().run()
     app.button(key="agent_open_button").click().run()
-    assert len(scrolls) == 7
+    assert len(scrolls) == 8

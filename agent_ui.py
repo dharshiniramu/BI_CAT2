@@ -1,7 +1,6 @@
 """Floating Streamlit interface for the chart and demand assistant."""
 
 from collections.abc import Mapping
-from typing import Any
 
 import pandas as pd
 import streamlit as st
@@ -108,116 +107,175 @@ def _styles(is_open: bool) -> str:
     expanded_styles = ""
     if is_open:
         expanded_styles = """
+        :root {
+            --agent-w: clamp(380px, 30vw, 560px);
+        }
+        [data-testid="stAppViewContainer"] {
+            width: calc(100vw - var(--agent-w)) !important;
+            max-width: calc(100vw - var(--agent-w)) !important;
+            overflow-x: hidden !important;
+        }
+        [data-testid="stMain"] {
+            flex: 1 1 0 !important;
+            min-width: 0 !important;
+        }
+        [data-testid="stHeader"],
+        [data-testid="stBottom"] {
+            width: calc(100vw - var(--agent-w)) !important;
+            max-width: calc(100vw - var(--agent-w)) !important;
+            left: 0 !important;
+            right: auto !important;
+        }
+        .block-container {
+            max-width: 100% !important;
+            padding-left: 1.5rem !important;
+            padding-right: 1.5rem !important;
+        }
         .st-key-agent_panel {
-            position: fixed;
-            top: 0;
-            right: 0;
-            z-index: 1000000;
-            width: 420px;
-            max-width: 100vw;
-            height: 100vh;
-            height: 100dvh;
-            box-sizing: border-box;
-            padding: 16px 18px;
+            position: fixed !important;
+            top: 0 !important;
+            right: 0 !important;
+            left: auto !important;
+            z-index: 1000000 !important;
+            width: var(--agent-w) !important;
+            max-width: 100vw !important;
+            height: 100vh !important;
+            height: 100dvh !important;
+            box-sizing: border-box !important;
+            padding: 0;
             display: flex;
             flex-direction: column;
-            overflow: hidden;
+            gap: 0 !important;
+            overflow: hidden !important;
+            min-width: 0 !important;
             color: #f4f4f5;
             background: #17191d;
-            border-left: 1px solid rgba(255, 255, 255, 0.12);
+            border-left: 1px solid rgba(255, 255, 255, 0.08);
             box-shadow: -12px 0 36px rgba(0, 0, 0, 0.28);
         }
-        .st-key-agent_panel > div,
-        .st-key-agent_panel > [data-testid="stVerticalBlock"],
-        .st-key-agent_panel > div > [data-testid="stVerticalBlock"],
-        .st-key-agent_panel > div > div[data-testid="stVerticalBlock"] {
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            min-height: 0;
-            gap: 0.65rem;
+        .st-key-agent_panel > [data-testid="stLayoutWrapper"] {
+            flex: 0 0 auto !important;
+            min-width: 0;
         }
-        .st-key-agent_panel div:has(> .st-key-agent_messages),
-        .st-key-agent_panel div:has(> div > .st-key-agent_messages),
-        .st-key-agent_panel [data-testid="stElementContainer"]:has(.st-key-agent_messages) {
-            flex: 1 1 auto;
+        .st-key-agent_panel > [data-testid="stLayoutWrapper"]:has(.st-key-agent_messages) {
+            flex: 1 1 0 !important;
             min-height: 0;
             display: flex;
             flex-direction: column;
-            overflow: hidden;
+        }
+        .st-key-agent_header,
+        .st-key-agent_mode_switcher {
+            flex: 0 0 auto !important;
+            min-height: 0;
+        }
+        .st-key-agent_header [data-testid="stVerticalBlock"] {
+            gap: 0 !important;
         }
         .st-key-agent_messages {
-            flex: 1 1 auto;
+            flex: 1 1 0;
             min-height: 0;
-            height: 100%;
             display: flex;
             flex-direction: column;
             overflow-y: auto !important;
             overflow-x: hidden !important;
-            padding-right: 8px;
             overscroll-behavior: contain;
             scrollbar-width: thin;
-            scrollbar-color: #626873 #25282e;
+            scrollbar-color: transparent transparent;
+            padding: 12px 16px 16px;
         }
-        .st-key-agent_messages > div,
         .st-key-agent_messages [data-testid="stVerticalBlock"] {
             display: flex;
             flex-direction: column;
             width: 100%;
-            min-height: min-content;
-            height: auto;
-            gap: 0.65rem;
+            flex: 1 1 0;
+            min-height: 0;
+            gap: 8px;
         }
         .st-key-agent_messages::-webkit-scrollbar {
             width: 6px;
         }
         .st-key-agent_messages::-webkit-scrollbar-track {
-            background: #25282e;
+            background: transparent;
             border-radius: 3px;
         }
         .st-key-agent_messages::-webkit-scrollbar-thumb {
-            background: #626873;
+            background: transparent;
             border-radius: 3px;
         }
-        .st-key-agent_messages::-webkit-scrollbar-thumb:hover {
-            background: #808793;
+        .st-key-agent_messages:hover {
+            scrollbar-color: #626873 transparent;
+        }
+        .st-key-agent_messages:hover::-webkit-scrollbar-thumb {
+            background: #626873;
         }
         .st-key-agent_messages [data-testid="stMarkdownContainer"],
         .st-key-agent_messages [data-testid="stChatMessage"],
         .st-key-agent_messages p,
         .st-key-agent_messages li,
         .st-key-agent_messages span {
-            word-break: break-word;
-            overflow-wrap: break-word;
-        }
-        .st-key-agent_messages table {
-            display: block;
-            width: 100%;
-            max-width: 100%;
-            overflow-x: auto;
-            border-collapse: collapse;
+            min-width: 0;
+            overflow-wrap: anywhere;
         }
         .st-key-agent_messages table,
         .st-key-agent_messages pre,
         .st-key-agent_messages code,
         .st-key-agent_messages [data-testid="stCode"] {
             max-width: 100%;
-            overflow-x: auto;
-            word-break: break-word;
+            overflow-wrap: anywhere;
         }
-        .st-key-agent_panel div:has(> .st-key-agent_chat_input),
-        .st-key-agent_chat_input {
+        .st-key-agent_panel [data-testid="stForm"] {
             flex: 0 0 auto;
             box-sizing: border-box;
-            padding: 10px 0 0;
+            width: 100%;
+            padding: 12px 16px 16px;
             background: #17191d;
-            border-top: 1px solid rgba(255, 255, 255, 0.12);
-            margin-top: auto;
+            border-top: 1px solid rgba(255, 255, 255, 0.14);
+            border-right: 0;
+            border-bottom: 0;
+            border-left: 0;
+            box-shadow: none;
         }
-        .st-key-agent_chat_input [data-testid="stForm"] {
-            background: #17191d;
-            border: none;
+        .st-key-agent_panel [data-testid="stForm"] > [data-testid="stVerticalBlock"] {
+            gap: 0 !important;
+        }
+        .st-key-agent_panel [data-testid="stForm"] [data-testid="stHorizontalBlock"] {
+            align-items: center;
+            gap: 8px;
+        }
+        .st-key-agent_panel [data-testid="stForm"] [data-testid="stColumn"] {
+            min-width: 0 !important;
+            padding: 0 !important;
+        }
+        .st-key-agent_panel [data-testid="stForm"] [data-testid="stColumn"]:last-child {
+            flex: 0 0 36px !important;
+            width: 36px !important;
+        }
+        .st-key-agent_question_text {
+            margin: 0;
+        }
+        .st-key-agent_question_text input {
+            min-height: 40px;
+            border-radius: 12px;
+            background: #22252b;
+            border-color: rgba(255, 255, 255, 0.14);
+        }
+        .st-key-FormSubmitter-agent_chat_input-Send button {
+            width: 36px;
+            height: 36px;
+            min-height: 36px;
             padding: 0;
+            border-radius: 50%;
+            color: white;
+            background: #e53935;
+            border: none;
+            font-size: 0;
+        }
+        .st-key-FormSubmitter-agent_chat_input-Send button::after {
+            content: "➤";
+            font-size: 16px;
+        }
+        .st-key-FormSubmitter-agent_chat_input-Send button:hover {
+            background: #c62828;
         }
         .st-key-agent_panel,
         .st-key-agent_panel [data-testid="stMarkdownContainer"] p,
@@ -241,27 +299,129 @@ def _styles(is_open: bool) -> str:
         }
         .st-key-agent_header {
             flex: 0 0 auto;
-            padding-bottom: 8px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+            box-sizing: border-box;
+            padding: 16px 16px 0;
+        }
+        .st-key-agent_header [data-testid="stHorizontalBlock"] {
+            width: 100%;
+            align-items: center;
+            gap: 8px;
+        }
+        .st-key-agent_header [data-testid="stColumn"] {
+            min-width: 0 !important;
+            padding: 0 !important;
+        }
+        .st-key-agent_header [data-testid="stColumn"]:first-child {
+            flex: 1 1 0 !important;
+            width: auto !important;
+        }
+        .st-key-agent_header [data-testid="stColumn"]:nth-child(2),
+        .st-key-agent_header [data-testid="stColumn"]:nth-child(3) {
+            flex: 0 0 32px !important;
+            width: 32px !important;
+        }
+        .st-key-agent_header [data-testid="stColumn"] [data-testid="stMarkdownContainer"] {
+            min-width: 0;
         }
         .st-key-agent_header h3 {
             margin: 0;
             white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
             color: #f4f4f5 !important;
             font-size: 1.1rem;
             font-weight: 600;
         }
-        .st-key-agent_header [data-testid="stHorizontalBlock"] {
-            align-items: center;
+        .st-key-agent_header [data-testid="stButton"] button {
+            width: 32px;
+            height: 32px;
+            min-height: 32px;
+            padding: 0;
+            border-radius: 8px;
+            font-size: 15px;
+            line-height: 1;
         }
-        .st-key-agent_panel [data-testid="stSegmentedControl"] {
+        .st-key-agent_mode_switcher {
             flex: 0 0 auto;
+            box-sizing: border-box;
+            width: calc(100% - 32px);
+            margin: 12px 16px 0;
+        }
+        .st-key-agent_mode_switcher [data-testid="stButtonGroup"] {
+            width: 100%;
+            min-height: 36px !important;
+            display: flex;
+        }
+        .st-key-agent_mode_switcher [data-testid="stButtonGroup"] button {
+            min-height: 36px !important;
+            flex: 1 1 0;
+            padding: 6px 8px;
+            border-radius: 8px;
+        }
+        .st-key-agent_mode_switcher [data-testid="stButtonGroup"] button[aria-checked="true"] {
+            color: #ffffff !important;
+            background: #e53935 !important;
+            border-color: #e53935 !important;
+        }
+        .st-key-agent_suggestions [data-testid="stVerticalBlock"] {
+            gap: 8px;
         }
         .st-key-agent_suggestions button {
             width: 100%;
-            min-height: 54px;
+            height: auto;
+            min-height: 0;
+            padding: 10px 12px;
             white-space: normal;
             text-align: left;
+            justify-content: flex-start;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 12px;
+            background: #202329;
+            line-height: 1.35;
+        }
+        .st-key-agent_suggestions button:hover {
+            background: #2a2d34;
+            border-color: rgba(229, 57, 53, 0.55);
+        }
+        .st-key-agent_messages [data-testid="stChatMessage"] {
+            align-items: flex-start;
+            gap: 8px;
+            padding: 0;
+            background: transparent;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .st-key-agent_messages [data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] {
+            min-width: 0;
+            max-width: 100%;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .st-key-agent_messages [data-testid="stChatMessage"] [data-testid="stChatMessageAvatar"] {
+            width: 24px;
+            height: 24px;
+            flex: 0 0 auto;
+            font-size: 14px;
+        }
+        .st-key-agent_messages [data-testid="stChatMessageAvatar"] img {
+            width: 24px;
+            height: 24px;
+        }
+        .st-key-agent_messages [data-testid="stChatMessage"][data-message-author="user"] [data-testid="stChatMessageAvatar"] {
+            display: none;
+        }
+        .st-key-agent_messages [data-testid="stChatMessage"][data-message-author="user"] [data-testid="stMarkdownContainer"] {
+            margin-left: auto;
+            max-width: 88%;
+            padding: 9px 12px;
+            border-radius: 12px 12px 4px 12px;
+            background: rgba(229, 57, 53, 0.18);
+        }
+        .st-key-agent_messages [data-testid="stChatMessage"] [data-testid="stButton"] button {
+            min-height: 28px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 12px;
         }
         .st-key-agent_panel iframe[title="st.components.v1.html"] {
             display: none !important;
@@ -269,23 +429,33 @@ def _styles(is_open: bool) -> str:
             width: 0 !important;
             border: none !important;
         }
-        .stAppViewContainer .main .block-container {
-            padding-right: 440px;
-        }
-        @media (max-width: 700px) {
+        @media (max-width: 899px) {
+            [data-testid="stAppViewContainer"] {
+                width: 100vw !important;
+                max-width: 100vw !important;
+            }
+            [data-testid="stHeader"],
+            [data-testid="stBottom"] {
+                width: 100vw !important;
+                max-width: 100vw !important;
+            }
             .st-key-agent_panel {
-                width: 100vw;
+                width: var(--agent-w);
+                max-width: 100vw;
                 padding-left: 14px;
                 padding-right: 14px;
-            }
-            .stAppViewContainer .main .block-container {
-                padding-right: 1rem;
             }
         }
         """
 
     return f"""
     <style>
+        .stAppViewContainer,
+        [data-testid="stAppViewContainer"] {{
+            width: 100vw !important;
+            max-width: 100vw !important;
+            transition: width 0.2s ease, max-width 0.2s ease;
+        }}
         .st-key-agent_launcher {{
             position: fixed;
             right: 24px;
@@ -349,7 +519,10 @@ def _render_history(mode: str) -> None:
 
     assistant_index = 0
     for message in history:
-        with st.chat_message(message["role"]):
+        with st.chat_message(
+            message["role"],
+            avatar="🤖" if message["role"] == "assistant" else None,
+        ):
             st.markdown(message["content"])
             if message["role"] == "assistant":
                 redirect = (
@@ -380,7 +553,7 @@ def _answer_question(
     with st.chat_message("user"):
         st.markdown(question)
 
-    with st.chat_message("assistant"):
+    with st.chat_message("assistant", avatar="🤖"):
         with st.spinner("Checking the charts and demand data..."):
             result = answer(question, mode, filtered_data, history)
         st.markdown(result["text"])
@@ -405,14 +578,31 @@ def _scroll_messages_to_bottom() -> None:
     st.components.v1.html(
         """
         <script>
-        setTimeout(() => {
-            const messages = window.parent.document.querySelector(
-                ".st-key-agent_messages"
-            );
-            if (messages) {
-                messages.scrollTop = messages.scrollHeight;
-            }
-        }, 100);
+        const messages = window.parent.document.querySelector(
+            ".st-key-agent_messages"
+        );
+        if (messages) {
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    messages.scrollTop = messages.scrollHeight;
+                });
+            });
+        }
+        </script>
+        """,
+        height=0,
+    )
+
+
+def _dispatch_layout_resize() -> None:
+    st.components.v1.html(
+        """
+        <script>
+        [100, 300, 700].forEach((delay) => {
+            window.setTimeout(() => {
+                window.parent.dispatchEvent(new Event("resize"));
+            }, delay);
+        });
         </script>
         """,
         height=0,
@@ -430,7 +620,11 @@ def render_agent(
     """
     _initialize_state(active_tab)
     is_open = st.session_state["agent_open"]
+    was_open = st.session_state.get("agent_panel_was_open", False)
     st.markdown(_styles(is_open), unsafe_allow_html=True)
+
+    if is_open != was_open:
+        _dispatch_layout_resize()
 
     if not is_open:
         st.session_state["agent_panel_was_open"] = False
@@ -443,7 +637,6 @@ def render_agent(
             )
         return
 
-    was_open = st.session_state.get("agent_panel_was_open", False)
     should_scroll = False
     with st.container(key="agent_panel"):
         with st.container(key="agent_header"):
@@ -452,43 +645,53 @@ def render_agent(
             minimize_column.button(
                 "—",
                 key="agent_minimize_button",
-                help="Minimize",
+                help="Minimize (keeps your chat)",
                 on_click=_minimize_agent,
             )
             close_column.button(
                 "✕",
                 key="agent_close_button",
-                help="Close and clear conversation",
+                help="Close and clear chat",
                 on_click=_close_agent,
                 args=(_default_mode(active_tab),),
             )
 
         st.session_state["agent_mode_selector"] = st.session_state["agent_mode"]
-        st.segmented_control(
-            "Assistant mode",
-            options=list(MODES),
-            format_func=lambda mode: MODE_LABELS[mode],
-            key="agent_mode_selector",
-            on_change=_mode_changed,
-            label_visibility="collapsed",
-            width="stretch",
-        )
+        with st.container(key="agent_mode_switcher"):
+            st.segmented_control(
+                "Assistant mode",
+                options=list(MODES),
+                format_func=lambda mode: MODE_LABELS[mode],
+                key="agent_mode_selector",
+                on_change=_mode_changed,
+                label_visibility="collapsed",
+                width="stretch",
+            )
 
         mode = st.session_state["agent_mode"]
-        if not was_open and _history_for_mode(mode):
+        previous_mode = st.session_state.get("agent_last_rendered_mode")
+        if (not was_open or previous_mode != mode) and _history_for_mode(mode):
             should_scroll = True
+        st.session_state["agent_last_rendered_mode"] = mode
         messages_container = st.container(key="agent_messages")
         with messages_container:
             _render_history(mode)
 
         with st.form(key="agent_chat_input", clear_on_submit=True):
-            question = st.text_input(
-                "Ask about charts, analytics, or demand",
-                key="agent_question_text",
-                label_visibility="collapsed",
-                placeholder="Ask about charts, analytics, or demand",
-            )
-            submitted = st.form_submit_button("Send", use_container_width=True)
+            input_column, send_column = st.columns([10, 1], gap="small")
+            with input_column:
+                question = st.text_input(
+                    "Ask about charts, analytics, or demand",
+                    key="agent_question_text",
+                    label_visibility="collapsed",
+                    placeholder="Ask about charts, analytics, or demand",
+                )
+            with send_column:
+                submitted = st.form_submit_button(
+                    "Send",
+                    help="Send message",
+                    use_container_width=True,
+                )
 
         queued_question = st.session_state.pop("agent_pending_question", None)
         if isinstance(queued_question, str):
